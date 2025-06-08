@@ -53,6 +53,7 @@ router.get('/edit/:id', verify, (req, res) => {
             tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
             target_pelunasan_bulan: row.target_pelunasan_bulan,
             status: row.status,
+            metode_cicilan: row.metode_cicilan,
             total: formatRupiah(row.total),
             jumlah_cicilan: formatRupiah(row.jumlah_cicilan),
             sisa_cicilan: formatRupiah(row.total - row.jumlah_cicilan)
@@ -104,7 +105,7 @@ router.post('/store', verify,(req, res) => {
         return res.status(400).json({ message: 'Field wajib lengkap' });
     }
     const allowedTipe = ['utang', 'piutang'];
-    const allowedMetode = ['per_bulan', 'per_minggu', 'manual'];
+    const allowedMetode = ['per_bulan', 'per_minggu'];
     const allowedStatus = ['aktif', 'lunas'];
     if (!allowedTipe.includes(tipe)) {
         return res.status(400).json({ message: 'Tipe tidak valid' });
@@ -154,7 +155,7 @@ router.patch('/update/:id', verify,(req, res) => {
         return res.status(400).json({ message: 'Field wajib lengkap' });
     }
     const allowedTipe = ['utang', 'piutang'];
-    const allowedMetode = ['per_bulan', 'per_minggu', 'manual'];
+    const allowedMetode = ['per_bulan', 'per_minggu'];
     if (!allowedTipe.includes(tipe)) {
         return res.status(400).json({ message: 'Tipe tidak valid' });
     }
@@ -188,18 +189,29 @@ router.get('/detail/:id', (req, res) => {
         if (err || transaksiResult.length === 0) {
             return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
         }
-         const formatted = transaksiResult.map(row => ({
-            id: row.id,
-            tipe: row.tipe,
-            nama_lawan: row.nama_lawan,
-            tanggal_mulai: row.tanggal_mulai,
-            tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
-            target_pelunasan_bulan: row.target_pelunasan_bulan,
-            status: row.status,
-            total: formatRupiah(row.total),
-            jumlah_cicilan: formatRupiah(row.jumlah_cicilan),
-            sisa_cicilan: formatRupiah(row.total - row.jumlah_cicilan)
-        }));
+        const transaksi = transaksiResult[0];
+        let minimumCicilan = 0;
+        if (typeof transaksi.total === 'number' && typeof transaksi.jumlah_cicilan === 'number') {
+            if (transaksi.jumlah_cicilan === 0) {
+                minimumCicilan = transaksi.total / transaksi.target_pelunasan_bulan;
+            } else {
+                minimumCicilan = transaksi.sisa_cicilan / transaksi.target_pelunasan_bulan;
+            }
+        }
+        const formatted = {
+            id: transaksi.id,
+            tipe: transaksi.tipe,
+            nama_lawan: transaksi.nama_lawan,
+            tanggal_mulai: transaksi.tanggal_mulai,
+            tanggal_jatuh_tempo: transaksi.tanggal_jatuh_tempo,
+            target_pelunasan_bulan: transaksi.target_pelunasan_bulan,
+            metode_cicilan: transaksi.metode_cicilan,
+            status: transaksi.status,
+            total: formatRupiah(transaksi.total),
+            jumlah_cicilan: formatRupiah(transaksi.jumlah_cicilan),
+            sisa_cicilan: formatRupiah(transaksi.total - transaksi.jumlah_cicilan),
+            minimum_cicilan: formatRupiah(minimumCicilan)
+        };
         Cicilan.getByTransaksi(transaksiId, (err, cicilanResult) => {
             if (err) {
                 return res.status(500).json({ message: 'Gagal mengambil cicilan' });
@@ -212,7 +224,7 @@ router.get('/detail/:id', (req, res) => {
             bukti_transfer_url: row.bukti_transfer_url
         }));
             res.json({
-                transaksi: formatted[0],
+                transaksi: formatted,
                 cicilan: formattedCicilan
             });
         });

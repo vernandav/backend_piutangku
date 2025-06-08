@@ -42,7 +42,7 @@ const Transaksi = {
     db.query(`
         SELECT 
             id, tipe, nama_lawan, tanggal_mulai, tanggal_jatuh_tempo,
-            target_pelunasan_bulan, total, status, jumlah_cicilan,
+            target_pelunasan_bulan, total, status, metode_cicilan,jumlah_cicilan,
             (total - jumlah_cicilan) AS sisa_cicilan
         FROM transaksi
         where id = ?
